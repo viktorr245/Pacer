@@ -164,3 +164,36 @@ Reads of a provider's quota endpoint are Pacer's alone; clients and pages only r
 account in use needs no reads; an idle one is read every 30 minutes, and once just after a reset. Antigravity and
 OpenCode Go report nothing with responses: they are read every 30 minutes and 5 minutes after a burst of requests.
 No account is read more than once in 15 minutes.
+
+## A chat's prompt-cache requests
+
+`GET /v0/resource/plugins/pacer/cache?installation=<id>&session=<id>&route=<client-provider/model>`
+with `Authorization: Bearer <private chat capability>` returns the chat's own requests as CPA
+sent them to the provider, newest first. `installation`, `session` and `route` are the claim's
+values. A request is included only when its inference caller, with these three, rebuilds the
+key of the chat the capability belongs to: the same session under another API key, or another
+session, is never returned. An unknown capability is 401.
+
+```json
+{"protocol":1,"more":true,"requests":[
+ {"started_at":"2026-10-17T14:53:17.2Z","kind":"other","model":"claude-haiku-5-5",
+  "account":"Y","success":true,"uncached":4,"read":4773,"written":1040,
+  "prefix":{"key":"1525aa62688d2064","settings":"9c1d0e7a52b4f6a3","markers":[
+   {"section":"tools","ttl":"5m","tag":"e78f5c30a1b2c3d4"},
+   {"section":"system","ttl":"5m","tag":"2560ab8a0f1e2d3c"},
+   {"section":"messages","ttl":"5m","tag":"1f76650b9a8b7c6d"},
+   {"section":"messages","ttl":"5m","tag":"499f59c1e2d3c4b5"}]}}]}
+```
+
+`read`, `written` and `uncached` are the provider's own counts. `prefix` is present for Claude
+requests: one tag per cache marker in final-wire order, covering the prompt up to that marker
+after CPA's own changes, and `settings` for the request settings that also key the cache. Tags
+are the first 16 hex characters of CPA's content-free HMACs. They compare only between requests
+with the same `key`; a CPA restart rotates it. When the previous request read or wrote up to a
+marker and this one misses, the first marker whose tag changed names what changed; equal tags
+mean the provider lost the entry. ChatGPT reports no cache writes and CPA no markers for it, so
+its requests carry counts only. `account` is the account's alias, when it has one.
+
+`limit` (1–500, default 100) bounds a page. `more:true` means older requests remain; pass the
+oldest `started_at` as `before` (RFC 3339) for the next page. Records are kept as long as
+Pacer's measurement store keeps them. Reads only consult the store and never change routing.

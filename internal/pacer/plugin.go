@@ -485,7 +485,7 @@ func (p *Plugin) Handle(method string, raw []byte) (any, error) {
 		}
 		return result, err
 	case pluginabi.MethodManagementRegister:
-		result := map[string]any{"resources": []map[string]string{{"Path": "/index.html", "Menu": "Pacer", "Description": "Quota-aware routing and usage"}, {"Path": "/events", "Description": "Compatible capability-authenticated usage"}}, "routes": append([]map[string]string{{"Method": "GET", "Path": "/plugins/pacer/state"}, {"Method": "PATCH", "Path": "/plugins/pacer/routing"}, {"Method": "PATCH", "Path": "/plugins/pacer/settings"}, {"Method": "GET", "Path": "/plugins/pacer/observations"}, {"Method": "POST", "Path": "/plugins/pacer/observations/reconcile"}, {"Method": "GET", "Path": "/plugins/pacer/keys"}, {"Method": "PATCH", "Path": "/plugins/pacer/keys"}}, usageRoutes()...)}
+		result := map[string]any{"resources": []map[string]string{{"Path": "/index.html", "Menu": "Pacer", "Description": "Quota-aware routing and usage"}, {"Path": "/events", "Description": "Compatible capability-authenticated usage"}, {"Path": "/cache", "Description": "A chat's own prompt-cache requests, capability-authenticated"}}, "routes": append([]map[string]string{{"Method": "GET", "Path": "/plugins/pacer/state"}, {"Method": "PATCH", "Path": "/plugins/pacer/routing"}, {"Method": "PATCH", "Path": "/plugins/pacer/settings"}, {"Method": "GET", "Path": "/plugins/pacer/observations"}, {"Method": "POST", "Path": "/plugins/pacer/observations/reconcile"}, {"Method": "GET", "Path": "/plugins/pacer/keys"}, {"Method": "PATCH", "Path": "/plugins/pacer/keys"}}, usageRoutes()...)}
 		result["routes"] = append(result["routes"].([]map[string]string), p.registerForwardManagement(raw)...)
 		return result, nil
 	case pluginabi.MethodManagementHandle:
@@ -1052,6 +1052,9 @@ func (p *Plugin) manage(req pluginapi.ManagementRequest) pluginapi.ManagementRes
 	}
 	if req.Method == "GET" && req.Path == "/v0/resource/plugins/pacer/events" {
 		return p.events(req)
+	}
+	if req.Method == "GET" && req.Path == chatCachePath {
+		return p.chatCache(req)
 	}
 	// Exact management paths only: the public resource namespace cannot reach
 	// these branches. CPA authenticates management routes before ABI dispatch.
